@@ -355,7 +355,6 @@ mh=function(gentres_chr_ldblock,lddf_chr_ldblock,nk,
 #' compositemh()
 compositemh=function(gent.data,ld.df,gent.Rho,gwasn,verbose=TRUE,niter=10,
                      thr_r2=0.5,min_size=1,max_size=100,max_K=1e6,max_r2=0.75,...) {
-  library(data.table);library(dplyr);library(bigsnpr)
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
   # gent.data: GenT summary statistics, these columns assumed:
   #   - gene (gene symbol)
@@ -402,12 +401,12 @@ compositemh=function(gent.data,ld.df,gent.Rho,gwasn,verbose=TRUE,niter=10,
     chrmat=chrmat[ix,ix]
     # define correlation blocks (may need some adjusting)
     Rho=as(chrmat,'sparseMatrix')
-    blockres=snp_ldsplit(Rho,
-                         thr_r2=thr_r2,
-                         min_size=min_size,
-                         max_size=max_size,
-                         max_K=max_K,
-                         max_r2=max_r2)
+    blockres=bigsnpr::snp_ldsplit(Rho,
+                                  thr_r2=thr_r2,
+                                  min_size=min_size,
+                                  max_size=max_size,
+                                  max_K=max_K,
+                                  max_r2=max_r2)
     blocks=unlist(tail(blockres$all_last,1))
     if(is.null(blocks)) blocks=0:nrow(Rho) else blocks=c(0,blocks)
     # multiple iterations of composite likelihood
@@ -581,24 +580,24 @@ posterior_gene=function(gent.data,ld.df,gwasn,prior.estimation.list,verbose=TRUE
     for(i in 1:nrow(gentres_chr)) {
       if(verbose & i%%floor(nrow(gentres_chr)*0.1)==0) cat(' ',round(i/nrow(gentres_chr)*100),'% complete\n',sep='')
       # conditional marginal density (integrate over delta and tau)
-      prob=quad2d(f,
-                  xa=0, # lower bound of first integration
-                  xb=1, # upper bound of first integration
-                  ya=phi$tau_param_hard_a, # lower limit of second integration
-                  yb=phi$tau_param_hard_b, # upper limit of second integration
-                  m=gentres_chr$m[i],
-                  gent_sigma2_h0=gentres_chr$gent_sigma2_h0[i],
-                  gent_test_statistic=gentres_chr$gent_test_statistic[i],
-                  sumwldscore=lddf_chr$sumwldscore[i],
-                  sumwld2score=lddf_chr$sumwld2score[i],
-                  nk=gwasn,
-                  a=phi$tau_param_hard_a,
-                  x1=phi$tau_param_x1,
-                  x2=phi$tau_param_x1,
-                  b=phi$tau_param_hard_b,
-                  delta_alpha=phi$delta_param1,
-                  delta_beta=phi$delta_param2,
-                  n=100)
+      prob=pracma::quad2d(f,
+                          xa=0, # lower bound of first integration
+                          xb=1, # upper bound of first integration
+                          ya=phi$tau_param_hard_a, # lower limit of second integration
+                          yb=phi$tau_param_hard_b, # upper limit of second integration
+                          m=gentres_chr$m[i],
+                          gent_sigma2_h0=gentres_chr$gent_sigma2_h0[i],
+                          gent_test_statistic=gentres_chr$gent_test_statistic[i],
+                          sumwldscore=lddf_chr$sumwldscore[i],
+                          sumwld2score=lddf_chr$sumwld2score[i],
+                          nk=gwasn,
+                          a=phi$tau_param_hard_a,
+                          x1=phi$tau_param_x1,
+                          x2=phi$tau_param_x1,
+                          b=phi$tau_param_hard_b,
+                          delta_alpha=phi$delta_param1,
+                          delta_beta=phi$delta_param2,
+                          n=100)
       PROBS=rbind(PROBS,data.frame(gene=gentres_chr$gene[i],chr=chrs[cc],posterior_probability=prob))
     }
     probdf=rbind(probdf,PROBS %>% mutate(chr=chrs[cc],mid=gentres_chr$mid))
@@ -646,12 +645,12 @@ propshared=function(posteriors1,posteriors2,gwasn1,gwasn2,gent.Rho,niter=10,verb
     chrmat=chrmat[merged_12$gene,merged_12$gene]
     # identify independent LD blocks (will only be using one matrix)
     Rho=as(chrmat,'sparseMatrix')
-    blockres=snp_ldsplit(Rho,
-                         thr_r2=thr_r2,
-                         min_size=min_size,
-                         max_size=max_size,
-                         max_K=max_K,
-                         max_r2=max_r2)
+    blockres=bigsnpr::snp_ldsplit(Rho,
+                                  thr_r2=thr_r2,
+                                  min_size=min_size,
+                                  max_size=max_size,
+                                  max_K=max_K,
+                                  max_r2=max_r2)
     blocks=unlist(tail(blockres$all_last,1))
     if(is.null(blocks)) blocks=1:nrow(chrmat)
     blocks=c(0,blocks)
@@ -756,7 +755,6 @@ shared_count_simex=function(
 ) {
   # SIMEX adjustment to shared counts.
   # this function is used to estimate the number of genes which are inferred to be shared due only to sample overlap
-  library(mvnfast)
   tr=function(x) sum(diag(x))
   cs=function(n,rho) matrix(rho,n,n)+diag(1-rho,n)
   # genome-wide parameters
@@ -807,7 +805,7 @@ shared_count_simex=function(
       Z1=Z2=rep(0,m)
       if(i %in% ix1) Z1[causalsnpix]=sqrt(ngwas1*h21/mcausalsnps1)
       if(i %in% ix2) Z2[causalsnpix]=sqrt(ngwas2*h22/mcausalsnps2)
-      z=rmvn(niter,c(Z1,Z2),K)
+      z=mvnfast::rmvn(niter,c(Z1,Z2),K)
       T1=rowSums(z[,1:m]^2)
       T2=rowSums(z[,-c(1:m)]^2)
       # log versions to avoid numerical instability

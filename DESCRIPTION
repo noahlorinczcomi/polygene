@@ -2,8 +2,9 @@ Package: polygene
 Title: Estimation of Shared Polygenicity Between Trait Pairs
 Version: 0.0.0.9000
 Imports:
-    dplyr
-    bigsnpr
+    dplyr,
+    bigsnpr,
+    mvnfast,
     pracma
 Authors@R: 
     person("Noah", "Lorincz-Comi", , "lorincn@ccf.org", role = c("aut", "cre"),
